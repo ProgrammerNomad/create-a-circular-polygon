@@ -11,17 +11,17 @@
  */
 function createGeofence(float $latitude, float $longitude, int $numberOfPoints = 36): array
 {
-  $radius = 10; // Radius in kilometers
+    $radius = 10; // Radius in kilometers
 
-  $points = [];
-  $angle = 360 / $numberOfPoints;
+    $points = [];
+    $angle = 360 / $numberOfPoints;
 
-  for ($i = 0; $i < $numberOfPoints; $i++) {
-    $bearing = $angle * $i;
-    $points[] = calculateCoordinate($latitude, $longitude, $bearing, $radius);
-  }
+    for ($i = 0; $i < $numberOfPoints; $i++) {
+        $bearing = $angle * $i;
+        $points[] = calculateCoordinate($latitude, $longitude, $bearing, $radius);
+    }
 
-  return $points;
+    return $points;
 }
 
 /**
@@ -36,27 +36,58 @@ function createGeofence(float $latitude, float $longitude, int $numberOfPoints =
  */
 function calculateCoordinate(float $latitude, float $longitude, float $bearing, float $distance): array
 {
-  $earthRadius = 6371; // Earth's radius in kilometers
+    $earthRadius = 6371; // Earth's radius in kilometers
 
-  $latRad = deg2rad($latitude);
-  $lonRad = deg2rad($longitude);
-  $bearingRad = deg2rad($bearing);
+    $latRad = deg2rad($latitude);
+    $lonRad = deg2rad($longitude);
+    $bearingRad = deg2rad($bearing);
 
-  $newLatRad = asin(sin($latRad) * cos($distance / $earthRadius) + cos($latRad) * sin($distance / $earthRadius) * cos($bearingRad));
-  $newLonRad = $lonRad + atan2(sin($bearingRad) * sin($distance / $earthRadius) * cos($latRad), cos($distance / $earthRadius) - sin($latRad) * sin($newLatRad));
+    $newLatRad = asin(
+        sin($latRad) * cos($distance / $earthRadius) +
+        cos($latRad) * sin($distance / $earthRadius) * cos($bearingRad)
+    );
 
-  return [
-    'latitude' => rad2deg($newLatRad),
-    'longitude' => rad2deg($newLonRad),
-  ];
+    // Check if asin() returns a valid number
+    if (is_nan($newLatRad)) {
+        echo "Error: asin() returned NaN. Please check input values.\n";
+        return [
+            'latitude' => $latitude, // Return original latitude on error
+            'longitude' => $longitude, // Return original longitude on error
+        ];
+    }
+
+    $newLonRad = $lonRad + atan2(
+        sin($bearingRad) * sin($distance / $earthRadius) * cos($latRad),
+        cos($distance / $earthRadius) - sin($latRad) * sin($newLatRad)
+    );
+
+    return [
+        'latitude' => rad2deg($newLatRad),
+        'longitude' => rad2deg($newLonRad),
+    ];
 }
 
-// Get the user's current location (replace with actual implementation)
-$userLatitude = 28.6139; // Example latitude
-$userLongitude = 77.4403; // Example longitude
+// Get the user's current location (for testing)
+$userLatitude = 25.1422131; // Example latitude
+$userLongitude = 81.4358595; // Example longitude
 
 // Generate geofence points
 $geofencePoints = createGeofence($userLatitude, $userLongitude);
+
+// Validate and sanitize the geofence points
+$validGeofencePoints = [];
+foreach ($geofencePoints as $point) {
+    if (
+        isset($point['latitude']) && is_numeric($point['latitude']) && 
+        isset($point['longitude']) && is_numeric($point['longitude']) &&
+        !is_nan($point['latitude']) && !is_nan($point['longitude'])
+    ) {
+        $validGeofencePoints[] = [(float)$point['latitude'], (float)$point['longitude']];
+    } else {
+        echo "Invalid coordinate found: ";
+        print_r($point);
+    }
+}
 
 ?>
 
@@ -64,10 +95,10 @@ $geofencePoints = createGeofence($userLatitude, $userLongitude);
 <html>
 <head>
   <title>Geofence Example</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     #map { height: 400px; }
   </style>
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap" async defer></script> 
 </head>
 <body>
 
@@ -86,21 +117,33 @@ $geofencePoints = createGeofence($userLatitude, $userLongitude);
   <h2>Geofence Points:</h2>
   <pre><?php print_r($geofencePoints); ?></pre>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    var map = L.map('map').setView([<?php echo $userLatitude; ?>, <?php echo $userLongitude; ?>], 13);
+    function initMap() {
+      const map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 13,
+        center: { lat: <?php echo $userLatitude; ?>, lng: <?php echo $userLongitude; ?> },
+      });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
+      var geofencePoints = <?php echo json_encode($validGeofencePoints); ?>;
 
-    var geofencePoints = <?php echo json_encode($geofencePoints); ?>;
+      const geofenceCoords = geofencePoints.map(point => ({
+        lat: point[0], 
+        lng: point[1]  
+      }));
 
-    var polygon = L.polygon(geofencePoints); // Create polygon but don't add it yet
+      const geofencePolygon = new google.maps.Polygon({
+        paths: geofenceCoords,
+        strokeColor: "#FF0000",
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillColor: "#FF0000",
+        fillOpacity: 0.35,
+      });
 
-    document.getElementById('showGeofence').addEventListener('click', function() {
-      polygon.addTo(map); // Add polygon to map when button is clicked
-    });
+      document.getElementById('showGeofence').addEventListener('click', function() {
+        geofencePolygon.setMap(map);
+      });
+    }
   </script>
 
 </body>
