@@ -79,6 +79,8 @@ $geofencePoints = createGeofence($userLatitude, $userLongitude);
   <label for="longitude">Longitude:</label>
   <input type="text" id="longitude" value="<?php echo $userLongitude; ?>" readonly><br><br>
 
+  <button id="showGeofence">Show Geofence</button>
+
   <div id="map"></div>
 
   <h2>Geofence Points:</h2>
@@ -94,7 +96,11 @@ $geofencePoints = createGeofence($userLatitude, $userLongitude);
 
     var geofencePoints = <?php echo json_encode($geofencePoints); ?>;
 
-    var polygon = L.polygon(geofencePoints).addTo(map);
+    var polygon = L.polygon(geofencePoints); // Create polygon but don't add it yet
+
+    document.getElementById('showGeofence').addEventListener('click', function() {
+      polygon.addTo(map); // Add polygon to map when button is clicked
+    });
   </script>
 
 </body>
