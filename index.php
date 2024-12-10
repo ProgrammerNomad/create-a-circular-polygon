@@ -98,7 +98,7 @@ foreach ($geofencePoints as $point) {
   <style>
     #map { height: 400px; }
   </style>
-  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap" async defer></script> 
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDE8YbDivePY2YrS8whFvi4gmeCYrji9UY&callback=initMap" async defer></script> 
 </head>
 <body>
 
